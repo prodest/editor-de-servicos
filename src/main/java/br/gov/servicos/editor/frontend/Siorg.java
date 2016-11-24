@@ -26,7 +26,7 @@ import static lombok.AccessLevel.PRIVATE;
 @FieldDefaults(level = PRIVATE, makeFinal = true)
 public class Siorg {
 
-    public static final Predicate<String> URL_PREDICATE = Pattern.compile("http://estruturaorganizacional\\.dados\\.gov\\.br/id/unidade-organizacional/\\d+").asPredicate();
+    public static final Predicate<String> URL_PREDICATE = Pattern.compile("https://api\\.es\\.gov\\.br/organograma/\\d+").asPredicate();
 
     RestTemplate restTemplate;
 
@@ -43,15 +43,9 @@ public class Siorg {
         }
 
         try {
-            ResponseEntity<ConsultaUnidadeResumida> entity = restTemplate.getForEntity(urlOrgao, ConsultaUnidadeResumida.class);
-            ConsultaUnidadeResumida body = entity.getBody();
+            Orgaos.OrgaoES entity = restTemplate.getForObject(urlOrgao, Orgaos.OrgaoES.class);
 
-            if (body.getServico().getCodigoErro() > 0) {
-                log.warn("Erro ao acessar Siorg: {}", body.getServico().getMensagem());
-                return empty();
-            }
-
-            return ofNullable(String.format("%s (%s)", body.getUnidade().getNome(), body.getUnidade().getSigla()));
+            return ofNullable(String.format("%s (%s)", entity.getRazaoSocial(), entity.getSigla()));
 
         } catch (RestClientException e) {
             log.warn("Erro ao acessar Siorg", e);
@@ -86,4 +80,9 @@ public class Siorg {
         String nome;
         String sigla;
     }
+
+
+
+
 }
+
