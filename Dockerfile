@@ -1,17 +1,34 @@
 FROM centos:centos7
 
-RUN rpm --import http://repos.azulsystems.com/RPM-GPG-KEY-azulsystems
-RUN curl -s -o /etc/yum.repos.d/zulu.repo http://repos.azulsystems.com/rhel/zulu.repo
-RUN yum -y update
-RUN yum -y install zulu-8-8.13.0.5-1
-RUN curl -s -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && chmod +x /usr/bin/jq
+#pŕepare environment
+RUN rpm --import http://repos.azulsystems.com/RPM-GPG-KEY-azulsystems && \
+    curl -s -o /etc/yum.repos.d/zulu.repo http://repos.azulsystems.com/rhel/zulu.repo && \
+    yum -y update && \
+    yum -y install zulu-8-8.13.0.5-1 epel-release && \
+    yum -y install nodejs  && \
+    curl -s -L -o /usr/bin/jq https://github.com/stedolan/jq/releases/download/jq-1.5/jq-linux64 && chmod +x /usr/bin/jq
 
-ARG SNAP_API_KEY
-ARG SNAP_PIPELINE_COUNTER
+# environment default env
+ENV JAVA_HOME "/usr/lib/jvm/zulu-8"
+ENV JAVA_OPTS: '-Dfile.encoding=UTF-8 -Xms256M -Xmx1G -Djava.awt.headless=true -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFraction=75 -XX:+UseCMSInitiatingOccupancyOnly -XX:+HeapDumpOnOutOfMemoryError -XX:+DisableExplicitGC'
+ENV SPRING_THYMELEAF_CACHE 'true'
+ENV FLAGS_GIT_PUSH 'true'
+ENV ENDPOINTS_ENABLED 'false'
+ENV ENDPOINTS_JOLOKIA_ENABLED 'false'
+ENV ENDPOINTS_INFO_ENABLED 'true'
+ENV ENDPOINTS_HEALTH_ENABLED 'true'
+ENV ENDPOINTS_HEALTH_SENSITIVE 'false'
 
-RUN curl -L -u ${SNAP_API_KEY} https://api.snap-ci.com/project/servicosgovbr/editor-de-servicos/branch/master/pipelines/${SNAP_PIPELINE_COUNTER} | jq '.stages[].workers[].artifacts[].download_url' | grep rpm | xargs curl -o editor-de-servicos-latest.rpm -L -u ${SNAP_API_KEY} && yum install -y editor-de-servicos-latest.rpm
+#build
+ADD . build
+WORKDIR build
+RUN ./gradlew assembleMainDist && \
+    cp -rf ./build/distributions/*.tar / && \
+    mkdir /editor && \
+    tar xvf /*.tar -C /editor --strip-components=1
+    #rm -rf ./build
+EXPOSE 8090
+#run cmd
+CMD /editor/bin/editor-de-servicos
 
-ADD run.sh /run.sh
 
-EXPOSE 8080
-CMD sh /run.sh
